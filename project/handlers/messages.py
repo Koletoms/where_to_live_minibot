@@ -1,19 +1,17 @@
+from telebot import types
 from bot import bot
 from request_api import user_request
-from keyboards import keyboards
+import keyboards
 
 
 @bot.message_handler(state=user_request.state_set.command)
-def place(message):
+def place(message: types.Message) -> None:
     """
     Получение названий подходящих мест.
     Следующие действие - уточнение локации.
     """
 
     try:
-        # if not isinstance(str, message.text):
-        #     raise ValueError
-
         user_request.place = message.text
         user_request.find_locations()
 
@@ -23,7 +21,7 @@ def place(message):
         bot.set_state(message.from_user.id, user_request.state_set.place)
 
         markup = keyboards.select_location(user_request.locations)
-        bot.send_message(message.chat.id, 'Уточнение место', reply_markup=markup)
+        bot.send_message(message.chat.id, 'Уточнение места', reply_markup=markup)
 
     except NameError:
         bot.send_message(message.chat.id, 'Место не найдено. Уточните название места')
@@ -32,7 +30,7 @@ def place(message):
 
 
 @bot.message_handler(state=user_request.state_set.location_id)
-def number_hotels_get(message) -> None:
+def number_hotels_get(message: types.Message) -> None:
     """
     Получение количества отображаемых отелей.
     Следующие действие - ввод даты заезда.
@@ -47,7 +45,8 @@ def number_hotels_get(message) -> None:
         user_request.number_hotels = number
 
         bot.set_state(message.from_user.id, user_request.state_set.number_hotels)
-        bot.send_message(message.chat.id, 'Выберете дату заезда в формате dd-mm-yyyy')
+        markup = keyboards.generate_calendar_days()
+        bot.send_message(message.chat.id, 'Выберете дату заезда или введите в формате dd-mm-yyyy', reply_markup=markup)
 
     except TypeError:
         bot.send_message(message.chat.id, 'Необходимо ввести число.')
@@ -56,33 +55,34 @@ def number_hotels_get(message) -> None:
 
 
 @bot.message_handler(state=user_request.state_set.number_hotels)
-def arrival_date_get(message):
+def arrival_date_get(message: types.Message) -> None:
     """
     Получение даты заезда.
     Следующие действие - ввод даты выезда.
     """
     try:
-        user_request.arrival = map(int, message.text.split('-'))
+        day, month, year = map(int, message.text.split('-'))
+        user_request.arrival = day, month, year
 
         bot.set_state(message.from_user.id, user_request.state_set.arrival)
-        bot.send_message(message.chat.id, 'Выберете дату выезда в формате dd-mm-yyyy')
+        markup = keyboards.generate_calendar_days()
+        bot.send_message(message.chat.id, 'Выберете дату выезда или введите в формате dd-mm-yyyy', reply_markup=markup)
 
     except BaseException:
         bot.send_message(message.chat.id, 'Я не понимаю. Введите дату в формате dd-mm-yyyy')
 
 
 @bot.message_handler(state=user_request.state_set.arrival)
-def departure_date_get(message):
+def departure_date_get(message: types.Message) -> None:
     """
     Получение даты выезда.
     Следующие действие - запрос показывать ли фото.
     """
     try:
-        # кнопка от календаря
-
         markup = keyboards.photo()
 
-        user_request.departure = map(int, message.text.split('-'))
+        day, month, year = map(int, message.text.split('-'))
+        user_request.departure = day, month, year
 
         bot.set_state(message.from_user.id, user_request.state_set.departure)
 
@@ -93,7 +93,7 @@ def departure_date_get(message):
 
 
 @bot.message_handler(state=user_request.state_set.photo)
-def number_photo_get(message):
+def number_photo_get(message: types.Message) -> None:
     """
     Получение количества отображаемых фотографий для каждого отеля.
     Следующие действие - подтверждение запроса.
@@ -110,7 +110,15 @@ def number_photo_get(message):
         bot.set_state(message.from_user.id, user_request.state_set.number_photo)
 
         markup = keyboards.final()
-        bot.send_message(message.from_user.id, 'Проверьте запрос', reply_markup=markup)
+        arrival_date = user_request.arrival
+        departure_date = user_request.departure
+
+        msg = (f'Проверьте запрос\n'
+               f'Локация: {user_request.place}\n'
+               f'Дата заезда: {"-".join(map(str, arrival_date))}\n'
+               f'Дата выезда: {"-".join(map(str, departure_date))}\n'
+               )
+        bot.send_message(message.from_user.id, msg, reply_markup=markup)
 
     except TypeError:
         bot.send_message(message.chat.id, 'Необходимо ввести число.')
@@ -119,7 +127,7 @@ def number_photo_get(message):
 
 
 @bot.message_handler()
-def unknown_message(message) -> None:
+def unknown_message(message: types.Message) -> None:
     """
     Функция обрабатывает все неизвестные сообщения.
     """

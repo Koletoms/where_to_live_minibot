@@ -7,6 +7,7 @@ class Hotel:
     """
     Класс отель. Ищет и содержит данные об отеле.
     """
+
     def __init__(self, name, id, price_day, price_total, distance) -> None:
         self.name: str = name
         self.id: int = id
@@ -105,10 +106,8 @@ class SearchHotels:
         """
         Производит запрос на API, формирует список экземпляров класса Hotel.
         """
-
         d_in, m_in, y_in = self.arrival
         d_out, m_out, y_out = self.departure
-
         url = "https://hotels4.p.rapidapi.com/properties/v2/list"
         payload = {
             "currency": "USD",
@@ -134,10 +133,8 @@ class SearchHotels:
             case 'bestdeal':
                 payload['sort'] = 'DISTANCE'
                 payload['filters'] = {'price': {'max': self.max_price, 'min': self.min_price}}
-
         response = requests.request("POST", url, json=payload, headers=headers)
         data_hotels = json.loads(response.text)
-
         for hotel in data_hotels['data']['propertySearch']['properties']:  # Формирует список отелей.
             try:  # Подправить
                 distance_to_cent = hotel['destinationInfo']['distanceFromDestination']['value']
@@ -150,7 +147,7 @@ class SearchHotels:
                         distance=distance_to_cent
                     )
                     self.hotels.append(new_hotel)
-            except :
+            except BaseException:
                 print('ошибка в добавение отеля')
                 continue
 
